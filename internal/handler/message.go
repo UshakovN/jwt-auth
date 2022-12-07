@@ -1,8 +1,8 @@
 package handler
 
 import (
-  "Lab8/internal/service"
   "Lab8/internal/domain"
+  "Lab8/internal/service"
 )
 
 const statusOK = "ok"

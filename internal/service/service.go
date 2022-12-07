@@ -1,13 +1,13 @@
 package service
 
 import (
-  "Lab8/internal/domain"
-  "fmt"
-  "Lab8/internal/auth"
-  "Lab8/internal/repo"
-  "time"
   "Lab8/cmd/pkg/utils"
+  "Lab8/internal/auth"
+  "Lab8/internal/domain"
+  "Lab8/internal/repo"
   "bytes"
+  "fmt"
+  "time"
 )
 
 const tokenTTL = 15 * time.Minute // expired token

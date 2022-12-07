@@ -1,8 +1,8 @@
 package handler
 
 import (
-  "net/http"
   "fmt"
+  "net/http"
 )
 
 func (h *Handler) StartServing(port int) error {

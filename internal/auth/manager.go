@@ -1,8 +1,9 @@
 package auth
 
 import (
-  "time"
   "fmt"
+  "time"
+
   "github.com/dgrijalva/jwt-go"
   "github.com/google/uuid"
 )

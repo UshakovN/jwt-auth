@@ -1,16 +1,17 @@
 package main
 
 import (
+  "Lab8/internal/auth"
+  "Lab8/internal/handler"
+  "Lab8/internal/hash"
+  "Lab8/internal/repo"
+  "Lab8/internal/service"
   "flag"
   "os"
   "os/signal"
   "syscall"
-  "Lab8/internal/handler"
-  "Lab8/internal/repo"
-  "Lab8/internal/service"
-  "Lab8/internal/auth"
+
   log "github.com/sirupsen/logrus"
-  "Lab8/internal/hash"
 )
 
 func continuouslyServe(h *handler.Handler, port int) {
