@@ -17,13 +17,16 @@ type Service interface {
   UserSignUp(input *domain.SignUpInput) (*domain.Tokens, error)
   GetUserInfo(string) (*User, error)
   FindUserByEmail(string) (*User, bool, error)
-  newUserId(email string) (string, error)
+  ConfirmRefreshToken(string, string) (bool, error)
+  CreateSession(userId string) (*domain.Tokens, error)
   confirmUser(userId, passwordHash string) (*User, error)
+  newUserId(email string) (string, error)
 }
 
 type User struct {
   Id           string `json:"id"`
   Email        string `json:"email"`
+  RefreshToken string `json:"refresh_token"`
   PasswordHash string `json:"password_hash"`
 }
 
@@ -86,7 +89,7 @@ func (s *UserService) UserSignIn(input *domain.SignInInput) (*domain.Tokens, err
   if err != nil {
     return nil, err
   }
-  return s.createSession(user.Id)
+  return s.CreateSession(user.Id)
 }
 
 func (s *UserService) UserSignUp(input *domain.SignUpInput) (*domain.Tokens, error) {
@@ -97,15 +100,20 @@ func (s *UserService) UserSignUp(input *domain.SignUpInput) (*domain.Tokens, err
   if err != nil {
     return nil, err
   }
+  tokens, err := s.CreateSession(id)
+  if err != nil {
+    return nil, err
+  }
   user := &User{
     Id:           id,
     Email:        input.Email,
     PasswordHash: input.PasswordHash,
+    RefreshToken: tokens.Refresh,
   }
   if err := s.storage.Put(id, user); err != nil {
     return nil, err
   }
-  return s.createSession(id)
+  return tokens, nil
 }
 
 func (s *UserService) GetUserInfo(userId string) (*User, error) {
@@ -120,7 +128,7 @@ func (s *UserService) GetUserInfo(userId string) (*User, error) {
   return user, nil
 }
 
-func (s *UserService) createSession(userId string) (*domain.Tokens, error) {
+func (s *UserService) CreateSession(userId string) (*domain.Tokens, error) {
   accessToken, err := s.tokenManager.NewJWT(userId, s.tokenTTL)
   if err != nil {
     return nil, err
@@ -133,4 +141,19 @@ func (s *UserService) createSession(userId string) (*domain.Tokens, error) {
     Access:  accessToken,
     Refresh: refreshToken,
   }, nil
+}
+
+func (s *UserService) ConfirmRefreshToken(userId, refreshToken string) (bool, error) {
+  res, err := s.storage.Get(userId)
+  if err != nil {
+    return false, err
+  }
+  user, ok := res.(*User)
+  if !ok {
+    return false, fmt.Errorf("failed cast user data")
+  }
+  if user.RefreshToken != refreshToken {
+    return false, fmt.Errorf("refresh tokens mismatch")
+  }
+  return true, nil
 }

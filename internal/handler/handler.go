@@ -22,6 +22,7 @@ type ServiceHandler interface {
   handleSignUp(http.ResponseWriter, *http.Request)
   handleHealth(http.ResponseWriter, *http.Request)
   handleUserInfo(http.ResponseWriter, *http.Request)
+  handleRefreshTokens(http.ResponseWriter, *http.Request)
   StartServing(port int) error
 }
 
@@ -48,6 +49,14 @@ func NewHandler(config *Config) (*Handler, error) {
     tokenManager:    config.TokenManager,
     passwordManager: config.PasswordManager,
   }, nil
+}
+
+func extractContextUserId(r *http.Request) (string, error) {
+  userId, ok := r.Context().Value(ctxUserId).(string)
+  if !ok || userId == "" {
+    return "", fmt.Errorf("invalid user id")
+  }
+  return userId, nil
 }
 
 func extractAuthToken(r *http.Request) (string, error) {
@@ -117,6 +126,7 @@ func (h *Handler) handleSignIn(w http.ResponseWriter, r *http.Request) {
   }
   resp := &signResponse{}
   if err = mapResponse(tokens, resp); err != nil {
+    http.Error(w, err.Error(), http.StatusInternalServerError)
     return
   }
   if err = writeResponse(w, resp); err != nil {
@@ -126,15 +136,47 @@ func (h *Handler) handleSignIn(w http.ResponseWriter, r *http.Request) {
   }
 }
 
-func (h *Handler) handleUserInfo(w http.ResponseWriter, r *http.Request) {
-  accessToken, err := extractAuthToken(r)
+func (h *Handler) handleRefreshTokens(w http.ResponseWriter, r *http.Request) {
+  userId, err := extractContextUserId(r)
   if err != nil {
-    http.Error(w, err.Error(), http.StatusUnauthorized)
+    http.Error(w, err.Error(), http.StatusInternalServerError)
     return
   }
-  userId, err := h.tokenManager.Parse(accessToken)
+  req := &refreshRequest{}
+  if err := readRequest(r, req); err != nil {
+    http.Error(w, err.Error(), http.StatusInternalServerError)
+    return
+  }
+  validToken, err := h.service.ConfirmRefreshToken(userId, req.RefreshToken)
   if err != nil {
-    http.Error(w, err.Error(), http.StatusForbidden)
+    http.Error(w, err.Error(), http.StatusInternalServerError)
+    return
+  }
+  if !validToken {
+    http.Error(w, err.Error(), http.StatusBadRequest)
+    return
+  }
+  tokens, err := h.service.CreateSession(userId)
+  if err != nil {
+    http.Error(w, err.Error(), http.StatusInternalServerError)
+    return
+  }
+  resp := &signResponse{}
+  if err := mapResponse(tokens, resp); err != nil {
+    http.Error(w, err.Error(), http.StatusInternalServerError)
+    return
+  }
+  if err := writeResponse(w, resp); err != nil {
+    http.Error(w, err.Error(), http.StatusInternalServerError)
+    log.Error(err)
+    return
+  }
+}
+
+func (h *Handler) handleUserInfo(w http.ResponseWriter, r *http.Request) {
+  userId, err := extractContextUserId(r)
+  if err != nil {
+    http.Error(w, err.Error(), http.StatusInternalServerError)
     return
   }
   user, err := h.service.GetUserInfo(userId)

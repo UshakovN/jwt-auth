@@ -8,7 +8,7 @@ import (
 const statusOK = "ok"
 
 type allowedRequest interface {
-  *signRequest
+  *signRequest | *refreshRequest
 }
 
 type allowedDomains interface {
@@ -32,6 +32,10 @@ type signRequest struct {
 type signResponse struct {
   AccessToken  string `json:"access_token"`
   RefreshToken string `json:"refresh_token"`
+}
+
+type refreshRequest struct {
+  RefreshToken string `json:"refresh_token" mandatory:"true"`
 }
 
 type healthResponse struct {
